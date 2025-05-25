@@ -1,0 +1,200 @@
+brotli==1.1.0
+cffi==1.17.1
+flagembedding==1.3.4
+gmpy2==2.2.1
+importlib-metadata==8.0.0
+ipykernel==6.29.5
+jaraco.collections==5.1.0
+language-detector==5.0.2
+lightning==2.5.1
+mkl-fft==1.3.13
+mkl-random==1.2.10
+pip-chill==1.0.3
+polars==1.26.0
+pysocks==1.7.1
+pytorch-metric-learning==2.8.1
+retriv==0.2.3
+ruamel.yaml==0.18.10
+simplification==0.7.12
+stop-words==2018.7.23
+tensorboard==2.19.0
+tomli==2.0.1
+wandb==0.19.8
+# absl-py==2.2.1 # Installed as dependency for tensorboard
+# accelerate==1.5.2 # Installed as dependency for flagembedding, peft
+# aiohappyeyeballs==2.6.1 # Installed as dependency for aiohttp
+# aiohttp==3.11.14 # Installed as dependency for datasets
+# aiosignal==1.3.2 # Installed as dependency for aiohttp
+# alembic==1.15.2 # Installed as dependency for optuna
+# annotated-types==0.7.0 # Installed as dependency for pydantic
+# asttokens==3.0.0 # Installed as dependency for stack-data
+# async-timeout==5.0.1 # Installed as dependency for aiohttp
+# attrs==25.3.0 # Installed as dependency for aiohttp
+# autocommand==2.2.2 # Installed as dependency for jaraco.text
+# autofaiss==2.17.0 # Installed as dependency for retriv
+# backports.tarfile==1.2.0 # Installed as dependency for jaraco.context
+# beautifulsoup4==4.13.3 # Installed as dependency for ir-datasets
+# cbor==1.0.0 # Installed as dependency for trec-car-tools
+# cbor2==5.6.5 # Installed as dependency for ranx
+# certifi==2025.1.31 # Installed as dependency for requests, sentry-sdk
+# charset-normalizer==3.4.1 # Installed as dependency for requests
+# click==8.1.8 # Installed as dependency for nltk, wandb
+# colorlog==6.9.0 # Installed as dependency for optuna
+# comm==0.2.2 # Installed as dependency for ipykernel
+# contourpy==1.3.1 # Installed as dependency for matplotlib
+# cramjam==2.9.1 # Installed as dependency for fastparquet
+# cycler==0.12.1 # Installed as dependency for matplotlib
+# datasets==3.5.0 # Installed as dependency for flagembedding
+# debugpy==1.8.13 # Installed as dependency for ipykernel
+# decorator==5.2.1 # Installed as dependency for ipython
+# dill==0.3.8 # Installed as dependency for datasets, multiprocess
+# docker-pycreds==0.4.0 # Installed as dependency for wandb
+# embedding-reader==1.7.0 # Installed as dependency for autofaiss
+# exceptiongroup==1.2.2 # Installed as dependency for ipython
+# executing==2.2.0 # Installed as dependency for stack-data
+# faiss-cpu==1.10.0 # Installed as dependency for autofaiss, retriv
+# fastparquet==2024.11.0 # Installed as dependency for ranx
+# filelock==3.18.0 # Installed as dependency for datasets, huggingface-hub, torch, transformers
+# fire==0.5.0 # Installed as dependency for autofaiss
+# fonttools==4.56.0 # Installed as dependency for matplotlib
+# frozenlist==1.5.0 # Installed as dependency for aiohttp, aiosignal
+# fsspec==2024.12.0 # Installed as dependency for autofaiss, datasets, embedding-reader, fastparquet, huggingface-hub, lightning, pytorch-lightning, torch
+# gitdb==4.0.12 # Installed as dependency for gitpython
+# gitpython==3.1.44 # Installed as dependency for wandb
+# greenlet==3.1.1 # Installed as dependency for sqlalchemy
+# grpcio==1.71.0 # Installed as dependency for tensorboard
+# huggingface-hub==0.29.3 # Installed as dependency for accelerate, datasets, peft, sentence-transformers, tokenizers, transformers
+# idna==3.10 # Installed as dependency for requests, yarl
+# ijson==3.3.0 # Installed as dependency for ir-datasets
+# indxr==0.1.5 # Installed as dependency for retriv
+# inflect==7.3.1 # Installed as dependency for jaraco.text
+# inscriptis==2.6.0 # Installed as dependency for ir-datasets
+# intel-cmplr-lib-ur==2025.1.0 # Installed as dependency for intel-openmp
+# intel-openmp==2025.1.0 # Installed as dependency for mkl
+# ipython==8.34.0 # Installed as dependency for ipykernel
+# ir-datasets==0.5.9 # Installed as dependency for flagembedding, ranx
+# jaraco.context==5.3.0 # Installed as dependency for jaraco.text
+# jaraco.functools==4.0.1 # Installed as dependency for jaraco.text
+# jaraco.text==3.12.1 # Installed as dependency for jaraco.collections
+# jedi==0.19.2 # Installed as dependency for ipython
+# jinja2==3.1.6 # Installed as dependency for torch
+# joblib==1.4.2 # Installed as dependency for nltk, scikit-learn
+# jupyter-client==8.6.3 # Installed as dependency for ipykernel
+# jupyter-core==5.7.2 # Installed as dependency for ipykernel, jupyter-client
+# kiwisolver==1.4.8 # Installed as dependency for matplotlib
+# krovetzstemmer==0.8 # Installed as dependency for retriv
+# lightning-utilities==0.14.2 # Installed as dependency for lightning, pytorch-lightning, torchmetrics
+# llvmlite==0.44.0 # Installed as dependency for numba
+# lxml==5.3.1 # Installed as dependency for inscriptis, ir-datasets
+# lz4==4.4.3 # Installed as dependency for ir-datasets, oneliner-utils, ranx
+# mako==1.3.9 # Installed as dependency for alembic
+# markdown==3.7 # Installed as dependency for tensorboard
+# markdown-it-py==3.0.0 # Installed as dependency for rich
+# markupsafe==3.0.2 # Installed as dependency for jinja2, mako, werkzeug
+# matplotlib==3.10.1 # Installed as dependency for seaborn
+# matplotlib-inline==0.1.7 # Installed as dependency for ipykernel, ipython
+# mdurl==0.1.2 # Installed as dependency for markdown-it-py
+# mkl==2025.1.0 # Installed as dependency for mkl-fft, mkl-random
+# more-itertools==10.3.0 # Installed as dependency for inflect, jaraco.functools, jaraco.text
+# mpmath==1.3.0 # Installed as dependency for sympy
+# multidict==6.2.0 # Installed as dependency for aiohttp, yarl
+# multipipe==0.1.0 # Installed as dependency for retriv
+# multiprocess==0.70.16 # Installed as dependency for datasets, multipipe
+# nest-asyncio==1.6.0 # Installed as dependency for ipykernel
+# networkx==3.4.2 # Installed as dependency for torch
+# nltk==3.9.1 # Installed as dependency for retriv
+# numba==0.61.0 # Installed as dependency for ranx, retriv
+# numpy==1.26.4 # Installed as dependency for accelerate, autofaiss, contourpy, datasets, embedding-reader, faiss-cpu, fastparquet, indxr, ir-datasets, matplotlib, mkl-fft, mkl-random, numba, oneliner-utils, optuna, pandas, peft, pyarrow, pytorch-metric-learning, ranx, retriv, scikit-learn, scipy, seaborn, simplification, tensorboard, torchmetrics, torchvision, transformers, trec-car-tools
+# nvidia-cublas-cu12==12.4.5.8 # Installed as dependency for nvidia-cudnn-cu12, nvidia-cusolver-cu12, torch
+# nvidia-cuda-cupti-cu12==12.4.127 # Installed as dependency for torch
+# nvidia-cuda-nvrtc-cu12==12.4.127 # Installed as dependency for torch
+# nvidia-cuda-runtime-cu12==12.4.127 # Installed as dependency for torch
+# nvidia-cudnn-cu12==9.1.0.70 # Installed as dependency for torch
+# nvidia-cufft-cu12==11.2.1.3 # Installed as dependency for torch
+# nvidia-curand-cu12==10.3.5.147 # Installed as dependency for torch
+# nvidia-cusolver-cu12==11.6.1.9 # Installed as dependency for torch
+# nvidia-cusparse-cu12==12.3.1.170 # Installed as dependency for nvidia-cusolver-cu12, torch
+# nvidia-cusparselt-cu12==0.6.2 # Installed as dependency for torch
+# nvidia-nccl-cu12==2.21.5 # Installed as dependency for torch
+# nvidia-nvjitlink-cu12==12.4.127 # Installed as dependency for nvidia-cusolver-cu12, nvidia-cusparse-cu12, torch
+# nvidia-nvtx-cu12==12.4.127 # Installed as dependency for torch
+# oneliner-utils==0.1.2 # Installed as dependency for retriv
+# optuna==4.2.1 # Installed as dependency for retriv
+# orjson==3.10.16 # Installed as dependency for indxr, oneliner-utils, ranx
+# packaging==24.2 # Installed as dependency for accelerate, datasets, faiss-cpu, fastparquet, huggingface-hub, ipykernel, lightning, lightning-utilities, matplotlib, optuna, peft, pytorch-lightning, tensorboard, torchmetrics, transformers
+# pandas==2.2.3 # Installed as dependency for autofaiss, datasets, embedding-reader, fastparquet, ranx, seaborn
+# parso==0.8.4 # Installed as dependency for jedi
+# peft==0.15.1 # Installed as dependency for flagembedding
+# pexpect==4.9.0 # Installed as dependency for ipython
+# pillow==11.1.0 # Installed as dependency for matplotlib, sentence-transformers, torchvision
+# platformdirs==4.3.7 # Installed as dependency for jupyter-core, wandb
+# prompt-toolkit==3.0.50 # Installed as dependency for ipython
+# propcache==0.3.1 # Installed as dependency for aiohttp, yarl
+# protobuf==5.29.4 # Installed as dependency for flagembedding, tensorboard, wandb
+# psutil==7.0.0 # Installed as dependency for accelerate, ipykernel, peft, wandb
+# ptyprocess==0.7.0 # Installed as dependency for pexpect
+# pure-eval==0.2.3 # Installed as dependency for stack-data
+# pyarrow==15.0.2 # Installed as dependency for autofaiss, datasets, embedding-reader
+# pycparser==2.22 # Installed as dependency for cffi
+# pydantic==2.11.0 # Installed as dependency for wandb
+# pydantic-core==2.33.0 # Installed as dependency for pydantic
+# pygments==2.19.1 # Installed as dependency for ipython, rich
+# pyparsing==3.2.3 # Installed as dependency for matplotlib
+# pystemmer==2.0.1 # Installed as dependency for retriv
+# python-dateutil==2.9.0.post0 # Installed as dependency for jupyter-client, matplotlib, pandas
+# pytorch-lightning==2.5.1 # Installed as dependency for lightning
+# pytz==2025.2 # Installed as dependency for pandas
+# pyyaml==6.0.2 # Installed as dependency for accelerate, datasets, huggingface-hub, ir-datasets, lightning, optuna, peft, pytorch-lightning, transformers, wandb
+# pyzmq==26.3.0 # Installed as dependency for ipykernel, jupyter-client
+# ranx==0.3.20 # Installed as dependency for retriv
+# regex==2024.11.6 # Installed as dependency for nltk, transformers
+# requests==2.32.3 # Installed as dependency for datasets, huggingface-hub, inscriptis, ir-datasets, transformers, wandb
+# rich==13.9.4 # Installed as dependency for ranx
+# ruamel.yaml.clib==0.2.12 # Installed as dependency for ruamel.yaml
+# safetensors==0.5.3 # Installed as dependency for accelerate, peft, transformers
+# scikit-learn==1.6.1 # Installed as dependency for pytorch-metric-learning, retriv, sentence-transformers
+# scipy==1.15.2 # Installed as dependency for ranx, scikit-learn, sentence-transformers
+# seaborn==0.13.2 # Installed as dependency for ranx
+# sentence-transformers==4.0.1 # Installed as dependency for flagembedding
+# sentencepiece==0.2.0 # Installed as dependency for flagembedding
+# sentry-sdk==2.24.1 # Installed as dependency for wandb
+# setproctitle==1.3.5 # Installed as dependency for wandb
+# six==1.17.0 # Installed as dependency for docker-pycreds, fire, python-dateutil, tensorboard
+# smmap==5.0.2 # Installed as dependency for gitdb
+# soupsieve==2.6 # Installed as dependency for beautifulsoup4
+# sqlalchemy==2.0.40 # Installed as dependency for alembic, optuna
+# stack-data==0.6.3 # Installed as dependency for ipython
+# sympy==1.13.1 # Installed as dependency for torch
+# tabulate==0.9.0 # Installed as dependency for ranx
+# tbb==2022.1.0 # Installed as dependency for mkl
+# tcmlib==1.3.0 # Installed as dependency for tbb, umf
+# tensorboard-data-server==0.7.2 # Installed as dependency for tensorboard
+# termcolor==2.5.0 # Installed as dependency for fire
+# threadpoolctl==3.6.0 # Installed as dependency for scikit-learn
+# tokenizers==0.21.1 # Installed as dependency for transformers
+torch==2.6.0 # Installed as dependency for accelerate, flagembedding, lightning, peft, pytorch-lightning, pytorch-metric-learning, retriv, sentence-transformers, torchaudio, torchmetrics, torchvision
+# torchaudio==2.6.0 # Installed as dependency for retriv
+# torchmetrics==1.7.0 # Installed as dependency for lightning, pytorch-lightning
+# torchvision==0.21.0 # Installed as dependency for retriv
+# tornado==6.4.2 # Installed as dependency for ipykernel, jupyter-client
+# tqdm==4.67.1 # Installed as dependency for autofaiss, datasets, embedding-reader, huggingface-hub, ir-datasets, lightning, nltk, optuna, peft, pytorch-lightning, pytorch-metric-learning, ranx, retriv, sentence-transformers, transformers
+# traitlets==5.14.3 # Installed as dependency for comm, ipykernel, ipython, jupyter-client, jupyter-core, matplotlib-inline
+transformers==4.50.2 # Installed as dependency for flagembedding, peft, retriv, sentence-transformers
+# trec-car-tools==2.6 # Installed as dependency for ir-datasets
+# triton==3.2.0 # Installed as dependency for torch
+# typeguard==4.3.0 # Installed as dependency for inflect
+# typing-extensions==4.13.0 # Installed as dependency for alembic, beautifulsoup4, huggingface-hub, ipython, lightning, lightning-utilities, multidict, pydantic, pydantic-core, pytorch-lightning, rich, sentence-transformers, sqlalchemy, torch, typeguard, typing-inspection, wandb
+# typing-inspection==0.4.0 # Installed as dependency for pydantic
+# tzdata==2025.2 # Installed as dependency for pandas
+# umf==0.10.0 # Installed as dependency for intel-cmplr-lib-ur
+# unidecode==1.3.8 # Installed as dependency for retriv
+# unlzw3==0.2.3 # Installed as dependency for ir-datasets
+# urllib3==2.3.0 # Installed as dependency for requests, sentry-sdk
+# warc3-wet==0.2.5 # Installed as dependency for ir-datasets
+# warc3-wet-clueweb09==0.2.5 # Installed as dependency for ir-datasets
+# wcwidth==0.2.13 # Installed as dependency for prompt-toolkit
+# werkzeug==3.1.3 # Installed as dependency for tensorboard
+# xxhash==3.5.0 # Installed as dependency for datasets
+# yarl==1.18.3 # Installed as dependency for aiohttp
+# zipp==3.19.2 # Installed as dependency for importlib-metadata
+# zlib-state==0.1.9 # Installed as dependency for ir-datasets

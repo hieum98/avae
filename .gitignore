@@ -1,0 +1,9 @@
+checkpoints
+data
+draft.ipynb
+note.py
+pretrained_weights
+bash.sh
+scripts
+*__pycache__*
+wandb
