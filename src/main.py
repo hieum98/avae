@@ -13,7 +13,7 @@ from torch.distributed.fsdp.api import CPUOffload, ShardingStrategy
 import lightning as L
 from lightning.fabric.strategies import FSDPStrategy, DDPStrategy
 from lightning import seed_everything
-from transformers import PreTrainedTokenizer, HfArgumentParser
+from transformers import AutoModel, AutoTokenizer, PreTrainedTokenizer, HfArgumentParser
 from transformers.models.qwen2.modeling_qwen2 import Qwen2DecoderLayer
 from transformers.models.qwen3.modeling_qwen3 import Qwen3DecoderLayer
 
@@ -177,7 +177,17 @@ def main(
                 use_vae=model_args.use_vae,
                 style_loss_weight=model_args.style_loss_weight,
                 content_loss_weight=model_args.content_loss_weight,
-            )        
+                constraint_loss_weight=model_args.constraint_loss_weight,
+            ) 
+            pref_style_encoder = None
+            pref_content_encoder = None
+            if model_args.constraint_loss_weight > 0:
+                style_encoder = AutoModel.from_pretrained(model_args.style_encoder_model_name_or_path)
+                style_tokenizer = AutoTokenizer.from_pretrained(model_args.style_encoder_model_name_or_path)
+                pref_style_encoder = WrappedEncoder(style_encoder, style_tokenizer,num_gpus=1, gpu_id=fabric.local_rank)
+                content_encoder = AutoModel.from_pretrained(model_args.content_encoder_model_name_or_path)
+                content_tokenizer = AutoTokenizer.from_pretrained(model_args.content_encoder_model_name_or_path)
+                pref_content_encoder = WrappedEncoder(content_encoder, content_tokenizer,num_gpus=1, gpu_id=fabric.local_rank)     
             style_encoder_tokenizer = model.style_encoder.tokenizer
             content_encoder_tokenizer = model.content_encoder.tokenizer
             generator_tokenizer = model.generator.tokenizer
@@ -292,6 +302,8 @@ def main(
             lr_max_steps=lr_max_steps,
             filter_fn=filter_fn,
             num_epochs=num_epochs,
+            pref_style_encoder=pref_style_encoder,
+            pref_content_encoder=pref_content_encoder,
         )
 
 
@@ -387,10 +399,14 @@ def train_vae(
         train_dataloader: torch.utils.data.DataLoader,
         lr_max_steps: int,
         filter_fn: Optional[callable] = None,
+        pref_style_encoder: Optional[WrappedEncoder] = None,
+        pref_content_encoder: Optional[WrappedEncoder] = None,
         ):
 
     trainer = Trainer(
         fabric=fabric,
+        pref_style_encoder=pref_style_encoder,
+        pref_content_encoder=pref_content_encoder,
         lr_max_steps=lr_max_steps,
         num_accumulation_steps=training_args.num_accumulation_steps,
         grad_norm_clip=training_args.grad_norm_clip,

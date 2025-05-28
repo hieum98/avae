@@ -6,8 +6,8 @@ from typing import Any, Dict, List
 import numpy as np
 import torch
 import datasets
+import tqdm
 from transformers import PreTrainedTokenizer, BatchEncoding
-
 
 from src.data_modules.templates import (
     RECONSTRUCT_PROMPT,
@@ -16,6 +16,7 @@ from src.data_modules.templates import (
     CONTENT_REP_COMPARITOR_PROMPT,
     ContentRepComparisonReply,
 )
+from src.model.encoder import WrappedEncoder
 
 
 max_num_worker_suggest = 1
@@ -52,7 +53,45 @@ class DisentanglementDataset(torch.utils.data.Dataset):
         if num_train_example is not None and num_train_example < len(dataset):
             dataset = dataset.train_test_split(test_size=len(dataset) - num_train_example, seed=self.seed)['train']
         self.dataset = dataset
+        self.pre_computed_hidden = False
     
+    def precompute_ref_representation(self, style_encoder: WrappedEncoder, content_encoder: WrappedEncoder, batch_size: int=32, cache_name: str='precomputed_hidden'):
+        """
+        Precompute the style and content representations for the dataset.
+        This is useful for speeding up training and inference.
+        """
+        cache_dir = f"cache/{self.data_name_or_path}/{cache_name}"
+        if os.path.exists(cache_dir):
+            print(f"Loading precomputed hidden states from {cache_dir}")
+            self.dataset = datasets.load_from_disk(cache_dir)
+            self.pre_computed_hidden = True
+        else:
+            print(f"Precomputing hidden states for {self.data_name_or_path} dataset")
+            def get_hidden(batch, style_encoder, content_encoder):
+                bs = len(batch['text_1'])
+                texts = batch['text_1'] + batch['text_2']
+                style_rep, style_hiddens = style_encoder.encode(texts, max_length=2048, return_hidden_states=True)
+                content_rep, content_hidens = content_encoder.encode(texts, max_length=2048, return_hidden_states=True)
+                return {
+                    'txt1_style_hidden': style_hiddens[:bs].cpu().tolist(),
+                    'pref_txt1_style_reps': style_rep[:bs].cpu().tolist(),
+                    'txt2_style_hidden': style_hiddens[bs:].cpu().tolist(),
+                    'pref_txt2_style_reps': style_rep[bs:].cpu().tolist(),
+                    'txt1_content_hidden': content_hidens[:bs].cpu().tolist(),
+                    'pref_txt1_content_reps': content_rep[:bs].cpu().tolist(),
+                    'txt2_content_hidden': content_hidens[bs:].cpu().tolist(),
+                    'pref_txt2_content_reps': content_rep[bs:].cpu().tolist(),
+                }
+            self.dataset = self.dataset.map(
+                lambda batch: get_hidden(batch, style_encoder, content_encoder),
+                batched=True,
+                batch_size=batch_size,
+                num_proc=None
+            )
+            # Save the dataset to disk to avoid recomputing the representations
+            self.dataset.save_to_disk(cache_dir)
+            print(f"Saved precomputed hidden states to {cache_dir}")
+            self.pre_computed_hidden = True
 
     def __len__(self):
         return len(self.dataset)
@@ -104,9 +143,24 @@ class DisentanglementDataset(torch.utils.data.Dataset):
         content_discriminator_input = self.tokenizer.apply_chat_template(content_discriminator_message, tokenize=False)
         content_discriminator_prompt = self.tokenizer.apply_chat_template(content_discriminator_message[:1], tokenize=True, return_tensors=None)
         content_discriminator_prompt_length = len(content_discriminator_prompt)
+        if self.pre_computed_hidden:
+            txt1_style_hidden = example['txt1_style_hidden']
+            txt2_style_hidden = example['txt2_style_hidden']
+            txt1_content_hidden = example['txt1_content_hidden']
+            txt2_content_hidden = example['txt2_content_hidden']
+        else:
+            txt1_style_hidden = None
+            txt2_style_hidden = None
+            txt1_content_hidden = None
+            txt2_content_hidden = None
+            
         return {
             'text_1': example['text_1'],
             'text_2': example['text_2'],
+            'txt1_style_hidden': txt1_style_hidden,
+            'txt2_style_hidden': txt2_style_hidden,
+            'txt1_content_hidden': txt1_content_hidden,
+            'txt2_content_hidden': txt2_content_hidden,
             'text1_reconstruct': txt1_input,
             'txt1_reconstruct_prompt_length': txt1_prompt_length,
             'text2_reconstruct': txt2_input,
@@ -158,6 +212,11 @@ class DisentanglementDatasetCollator:
         txt2_reconstruct_prompt_length = [example['txt2_reconstruct_prompt_length'] for example in batch]
         style_discriminator_prompt_length = [example['style_discriminator_prompt_length'] for example in batch]
         content_discriminator_prompt_length = [example['content_discriminator_prompt_length'] for example in batch]
+        # Get txt1 and text2 style and content hidden representations
+        txt1_style_hidden = [torch.tensor(example['txt1_style_hidden']) for example in batch] if batch[0]['txt1_style_hidden'] is not None else None
+        txt2_style_hidden = [torch.tensor(example['txt2_style_hidden']) for example in batch] if batch[0]['txt2_style_hidden'] is not None else None
+        txt1_content_hidden = [torch.tensor(example['txt1_content_hidden']) for example in batch] if batch[0]['txt1_content_hidden'] is not None else None
+        txt2_content_hidden = [torch.tensor(example['txt2_content_hidden']) for example in batch] if batch[0]['txt2_content_hidden'] is not None else None
 
         # Tokenize the text
         style_encoder_input_tokenized = self.style_encoder_tokenizer(
@@ -266,10 +325,24 @@ class DisentanglementDatasetCollator:
                 if (content_discriminator_input_tokenized['labels'][i, :] == -100).all():
                     print(f"Warning: all input is -100 for example {i}.")
                     print(f"Input: {content_discriminator_input[i]}")
-        
+        # Padding the style and content hidden representations to the same length as the tokenized inputs
+        if txt1_style_hidden is not None:
+            style_hidden_dim = txt1_style_hidden[0].size(-1)
+            style_hiddens = torch.zeros_like(style_encoder_input_tokenized['input_ids']).unsqueeze(-1).expand(-1, -1, style_hidden_dim)
+            for i, hidden in enumerate(txt1_style_hidden + txt2_style_hidden):
+                style_hiddens[i, :hidden.size(0), :] = hidden
+            content_hidden_dim = txt1_content_hidden[0].size(-1)
+            content_hiddens = torch.zeros_like(content_encoder_input_tokenized['input_ids']).unsqueeze(-1).expand(-1, -1, content_hidden_dim)
+            for i, hidden in enumerate(txt1_content_hidden + txt2_content_hidden):
+                content_hiddens[i, :hidden.size(0), :] = hidden
+        else:
+            style_hiddens = None
+            content_hiddens = None
         return {
             'style_encoder_input_tokenized': style_encoder_input_tokenized,
             'content_encoder_input_tokenized': content_encoder_input_tokenized,
+            'style_hiddens': style_hiddens, # [2 * batch_size, sequence_length, hidden_dim]
+            'content_hiddens': content_hiddens, # [2 * batch_size, sequence_length, hidden_dim]
             'txt_reconstruct_tokenized': txt_reconstruct_tokenized,
             'txt_placeholder_token_pos': txt_placehoder_token_pos,
             'style_discriminator_input_tokenized': style_discriminator_input_tokenized,

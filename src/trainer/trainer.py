@@ -1,7 +1,7 @@
 import pathlib
 import shutil
 import time
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Union
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -18,6 +18,8 @@ class Trainer():
     def __init__(
             self,
             fabric: L.Fabric,
+            pref_style_encoder: WrappedEncoder = None,
+            pref_content_encoder: WrappedEncoder = None,
             num_kl_weight_cycles: int = 1,
             lr_max_steps: int = 1000,
             num_accumulation_steps: int = 1,
@@ -29,6 +31,9 @@ class Trainer():
             eval_batch_size: Optional[int] = 32,
             ):
         self.fabric = fabric
+        self.pref_style_encoder = pref_style_encoder
+        self.pref_content_encoder = pref_content_encoder
+
         self.best_results = {}
         self.num_kl_weight_cycles = num_kl_weight_cycles
         self.lr_max_steps = lr_max_steps
@@ -82,6 +87,25 @@ class Trainer():
                 num_training_steps=self.lr_max_steps * self.num_accumulation_steps,
                 num_cycles=self.num_kl_weight_cycles,
             )
+            pref_style_hidden = None
+            if self.pref_style_encoder is not None and model.constraint_loss_weight > 0:
+                with torch.no_grad():
+                    encoder_input = {
+                        'input_ids': batch['style_encoder_input_tokenized']['input_ids'],
+                        'attention_mask': batch['style_encoder_input_tokenized']['attention_mask'],
+                    }
+                    pref_style_output = self.pref_style_encoder(**encoder_input)
+                    pref_style_hidden = pref_style_output['hidden_states'] # [2*bs, seq_len, hidden_size]
+            pref_content_hidden = None
+            if self.pref_content_encoder is not None and model.constraint_loss_weight > 0:
+                with torch.no_grad():
+                    encoder_input = {
+                        'input_ids': batch['content_encoder_input_tokenized']['input_ids'],
+                        'attention_mask': batch['content_encoder_input_tokenized']['attention_mask'],
+                    }
+                    pref_content_output = self.pref_content_encoder(**encoder_input)
+                    pref_content_hidden = pref_content_output['hidden_states']
+
             is_accumulation = batch_idx % self.num_accumulation_steps != 0 
             # Do not accumulate gradients for checkpointing batches and last batch
             if batch_idx % self.checkpoint_interval == 0 or batch_idx + 1 == len(train_dataloader):
@@ -92,6 +116,8 @@ class Trainer():
                     'style_encoder_attention_mask': batch['style_encoder_input_tokenized']['attention_mask'],
                     'content_encoder_inputs_ids': batch['content_encoder_input_tokenized']['input_ids'],
                     'content_encoder_attention_mask': batch['content_encoder_input_tokenized']['attention_mask'],
+                    'pref_style_hidden_states': pref_style_hidden,
+                    'pref_content_hidden_states': pref_content_hidden,
                     'reconstruct_txt_inputs_ids': batch['txt_reconstruct_tokenized']['input_ids'],
                     'reconstruct_txt_attention_mask': batch['txt_reconstruct_tokenized']['attention_mask'],
                     'reconstruct_labels': batch['txt_reconstruct_tokenized']['labels'],

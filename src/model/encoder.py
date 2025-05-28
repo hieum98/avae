@@ -295,10 +295,12 @@ class Encoder(nn.Module, PyTorchModelHubMixin):
             texts: List[str],
             max_length: int = 512,
             batch_size: int = 32,
+            return_hidden_states: bool = False,
             **kwargs
             ):
         self.eval()
         all_reps = []
+        all_hidden_states = []
         if hasattr(self, 'device'):
             device = self.device
         else:
@@ -318,14 +320,27 @@ class Encoder(nn.Module, PyTorchModelHubMixin):
                 with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
                     input_ids = inputs['input_ids'].to(device)
                     attention_mask = inputs['attention_mask'].to(device)
-                    reps = self(input_ids, attention_mask)['reps']
+                    output = self(input_ids, attention_mask)
+                    reps = output['reps']
+                    # Mask out the padding tokens
+                    hidden_states = output['hidden_states'] * output['attention_mask'].unsqueeze(-1)  # [batch_size, seq_len, hidden_size]
             else:
                 input_ids = inputs['input_ids']
                 attention_mask = inputs['attention_mask']
-                reps = self(input_ids, attention_mask)['reps']
+                output = self(input_ids, attention_mask)
+                reps = output['reps']
+                hidden_states = output['hidden_states'] * output['attention_mask'].unsqueeze(-1)  # Mask out the padding tokens
             all_reps.append(reps.cpu())
+            all_hidden_states.append(hidden_states.cpu())
         all_reps = torch.cat(all_reps, dim=0)
-        return all_reps
+        max_seq_len = max([x.shape[1] for x in all_hidden_states])
+        padded_all_hidden_states = torch.zeros((all_reps.size(0), max_seq_len, all_hidden_states[0].size(-1)))
+        i = 0
+        for hidden_states in all_hidden_states:
+            bs, seq_len, hidden_size = hidden_states.size()
+            padded_all_hidden_states[i:i + bs, :seq_len, :] = hidden_states
+            i += bs
+        return all_reps if not return_hidden_states else (all_reps, padded_all_hidden_states)
     
 
 class WrappedEncoder(nn.Module):
@@ -335,6 +350,7 @@ class WrappedEncoder(nn.Module):
             tokenizer: PreTrainedTokenizer = None,
             model_checkpoint: Optional[str] = None,
             num_gpus: int = 1,
+            gpu_id: Optional[int] = None,
             ):
         super(WrappedEncoder, self).__init__()
         self.encoder = encoder
@@ -349,7 +365,12 @@ class WrappedEncoder(nn.Module):
             state_dict = torch.load(model_checkpoint, map_location='cpu')
             imcomplete_keys = self.encoder.load_state_dict(state_dict['model'], strict=False)
             print(f"Loaded model with missing keys: {imcomplete_keys}")
-        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        if torch.cuda.is_available():
+            self.device = torch.device(f'cuda:{gpu_id}' if gpu_id is not None else 'cuda')
+            self.is_cuda = True
+        else:
+            self.device = torch.device('cpu')
+            self.is_cuda = False
         self.num_gpus = min(torch.cuda.device_count(), num_gpus)
         print(f"Using {self.num_gpus} GPUs")
         self.encoder.to(self.device)
@@ -361,15 +382,42 @@ class WrappedEncoder(nn.Module):
         input_mask_expanded = attention_mask.unsqueeze(-1).expand(hidden_state.size()).float()
         return torch.sum(hidden_state * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
     
+    def forward(
+            self,
+            input_ids: torch.Tensor,  # [batch_size, seq_len]
+            attention_mask: torch.Tensor,  # [batch_size, seq_len]
+            prompt_length: Optional[torch.Tensor] = None,  # [batch_size]
+        ):
+        input_ids = input_ids.to(self.device)
+        attention_mask = attention_mask.to(self.device)
+        if self.is_cuda:
+            with torch.autocast(device_type='cuda', dtype=torch.float32):
+                output = self.encoder(input_ids, attention_mask,)
+        else:
+            with torch.autocast(device_type='cpu', dtype=torch.float32):
+                output = self.encoder(input_ids, attention_mask,)
+        if isinstance(self.encoder, Encoder):
+            reps = output['reps']
+            hidden_states = output.get('hidden_states', None)
+        else:
+            hidden_states = output['last_hidden_state'] * attention_mask.unsqueeze(-1)
+            reps = self.mean_pooling(hidden_states, attention_mask)
+        return {
+            'reps': reps,  # [batch_size, embedding_dim]
+            'hidden_states': hidden_states,  # [batch_size, seq_len, hidden_size]
+        }
+    
     @torch.no_grad()
     def encode(
             self,
             texts: List[str],
             max_length: int = 512,
             batch_size: int = 32,
+            return_hidden_states: bool = False,
             **kwargs
             ):
         all_reps = []
+        all_hidden_states = []
         device = self.device
         batch_size = batch_size * self.num_gpus
         for i in tqdm.tqdm(range(0, len(texts), batch_size), disable=len(texts) < 10000):
@@ -383,15 +431,18 @@ class WrappedEncoder(nn.Module):
                 padding='longest',
                 return_tensors='pt',
             )
-            if device == 'cuda' or device == torch.device('cuda'):
+            if self.is_cuda:
                 with torch.autocast(device_type='cuda', dtype=torch.float32):
                     input_ids = inputs['input_ids'].to(device)
                     attention_mask = inputs['attention_mask'].to(device)
                     output = self.encoder(input_ids, attention_mask)
                     if 'reps' in output:
                         reps = output['reps']
+                        hidden_states = output.get('hidden_states', None)
+                        if hidden_states is not None:
+                            hidden_states = hidden_states * attention_mask.unsqueeze(-1)
                     else:
-                        hidden_states = output['last_hidden_state']
+                        hidden_states = output['last_hidden_state'] * attention_mask.unsqueeze(-1)
                         reps = self.mean_pooling(hidden_states, attention_mask)
             else:
                 input_ids = inputs['input_ids']
@@ -399,12 +450,28 @@ class WrappedEncoder(nn.Module):
                 output = self.encoder(input_ids, attention_mask)
                 if 'reps' in output:
                     reps = output['reps']
+                    hidden_states = output.get('hidden_states', None)
+                    if hidden_states is not None:
+                        hidden_states = hidden_states * attention_mask.unsqueeze(-1)
                 else:
-                    hidden_states = output['last_hidden_state']
+                    hidden_states = output['last_hidden_state'] * attention_mask.unsqueeze(-1)
                     reps = self.mean_pooling(hidden_states, attention_mask)
             all_reps.append(reps.cpu())
+            all_hidden_states.append(hidden_states.cpu() if hidden_states is not None else None)
         all_reps = torch.cat(all_reps, dim=0)
-        return all_reps
+        if any(x is None for x in all_hidden_states):
+            all_hidden_states = None
+        else:
+            max_seq_len = max([x.shape[1] for x in all_hidden_states])
+            padded_all_hidden_states = torch.zeros((all_reps.size(0), max_seq_len, all_hidden_states[0].size(-1)), device=device)
+            i = 0
+            for hidden_states in all_hidden_states:
+                bs, seq_len, hidden_size = hidden_states.size()
+                padded_all_hidden_states[i:i + bs, :seq_len, :] = hidden_states
+                i += bs
+            all_hidden_states = padded_all_hidden_states
+
+        return all_reps if not return_hidden_states else (all_reps, padded_all_hidden_states)
 
 
 if __name__ == '__main__':

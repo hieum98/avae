@@ -308,6 +308,10 @@ class DisentanglementModelArguments(ModelArguments):
         default=0.0,
         metadata={"help": "Weight for the content KLD loss"}
     )
+    constraint_loss_weight: float = field(
+        default=0.0,
+        metadata={"help": "Weight for the constraint loss, i.e., the loss that ensures the model does not move far from the preference model"}
+    )
 
 
 @dataclass

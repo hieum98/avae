@@ -7,3 +7,4 @@ bash.sh
 scripts
 *__pycache__*
 wandb
+cache

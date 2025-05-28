@@ -1,4 +1,5 @@
 from typing import List, Union
+import einops
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -38,6 +39,7 @@ class AVAE(nn.Module):
             use_vae: bool = True,
             style_loss_weight: float = 0.0,
             content_loss_weight: float = 0.0,
+            constraint_loss_weight: float = 0.0,
             ):
         super().__init__()
         self.hprams = {
@@ -66,6 +68,7 @@ class AVAE(nn.Module):
             'use_vae': use_vae,
             'style_loss_weight': style_loss_weight,
             'content_loss_weight': content_loss_weight,
+            'constraint_loss_weight': constraint_loss_weight,
         }
         self.embedding_dim = embedding_dim
         self.vae_loss_weight = vae_loss_weight
@@ -76,6 +79,7 @@ class AVAE(nn.Module):
         self.mi_reg_weight = mi_reg_weight
         self.style_loss_weight = style_loss_weight
         self.content_loss_weight = content_loss_weight
+        self.constraint_loss_weight = constraint_loss_weight
 
         self.style_encoder = Encoder(
             model_name_or_path=style_encoder_model_name_or_path,
@@ -121,6 +125,7 @@ class AVAE(nn.Module):
             nn.Linear(self.embedding_dim, 2),
         )
         self.ce = nn.CrossEntropyLoss()
+        self.kl_loss = nn.KLDivLoss(reduction='none')
 
         self.generator = Generator(
             model_name_or_path=generator_model_name_or_path,
@@ -156,6 +161,8 @@ class AVAE(nn.Module):
             reconstruct_txt_attention_mask: torch.Tensor, # [2*batch_size, seq_len]
             reconstruct_labels: torch.Tensor, # [2*batch_size, seq_len]
             txt_placeholder_token_pos,
+            pref_style_hidden_states: torch.Tensor = None, # [2*batch_size, seq_len, embedding_dim]
+            pref_content_hidden_states: torch.Tensor = None, # [2*batch_size, seq_len, embedding_dim]
             style_discriminator_input_ids: torch.Tensor = None, # [batch_size, seq_len]
             style_discriminator_attention_mask: torch.Tensor = None, # [batch_size, seq_len]
             style_discriminator_labels: torch.Tensor = None, # [batch_size, seq_len]
@@ -260,6 +267,36 @@ class AVAE(nn.Module):
             )
             content_discriminator_loss = content_discriminator_outputs['loss']
 
+        constraint_loss = None
+        if self.constraint_loss_weight > 0:
+            # Style constraint loss (KL divergence between the style representation and the preferred style representation)
+            if pref_style_hidden_states is not None:
+                style_hidden = style_encoder_outputs['hidden_states'] # [2*bs, seq_len, embedding_dim]
+                style_hidden = einops.rearrange(style_hidden, 'b s d -> (b s) d') # [2*bs*seq_len, embedding_dim]
+                style_hidden = F.log_softmax(style_hidden, dim=-1) # [2*bs*seq_len, embedding_dim]
+                pref_style_hidden = einops.rearrange(pref_style_hidden_states, 'b s d -> (b s) d')
+                pref_style_hidden = F.softmax(pref_style_hidden, dim=-1)
+                style_constraint_loss = self.kl_loss(style_hidden, pref_style_hidden) # [2*bs*seq_len, embedding_dim]
+                # Ignore the padding tokens
+                style_encoder_attention_mask = einops.rearrange(style_encoder_attention_mask, 'b s -> (b s)') # [2*bs*seq_len]
+                style_encoder_attention_mask = style_encoder_attention_mask.unsqueeze(-1) # [2*bs*seq_len, 1]
+                style_constraint_loss = style_constraint_loss * style_encoder_attention_mask
+                style_constraint_loss = style_constraint_loss.sum() / style_encoder_attention_mask.sum() # Average over non-padding tokens
+                constraint_loss = style_constraint_loss
+            if pref_content_hidden_states is not None:
+                content_hidden = content_encoder_outputs['hidden_states']
+                content_hidden = einops.rearrange(content_hidden, 'b s d -> (b s) d') # [2*bs*seq_len, embedding_dim]
+                content_hidden = F.log_softmax(content_hidden, dim=-1) # [2*bs*seq_len, embedding_dim]
+                pref_content_hidden = einops.rearrange(pref_content_hidden_states, 'b s d -> (b s) d')
+                pref_content_hidden = F.softmax(pref_content_hidden, dim=-1)
+                content_constraint_loss = self.kl_loss(content_hidden, pref_content_hidden) # [2*bs*seq_len, embedding_dim]
+                # Ignore the padding tokens
+                content_encoder_attention_mask = einops.rearrange(content_encoder_attention_mask, 'b s -> (b s)') # [2*bs*seq_len]
+                content_encoder_attention_mask = content_encoder_attention_mask.unsqueeze(-1) # [2*bs*seq_len, 1]
+                content_constraint_loss = content_constraint_loss * content_encoder_attention_mask
+                content_constraint_loss = content_constraint_loss.sum() / content_encoder_attention_mask.sum() # Average over non-padding tokens
+                constraint_loss = constraint_loss + content_constraint_loss if constraint_loss is not None else content_constraint_loss
+
         # TODO: MI Mimimization with CLUB
         mi_loss = None
 
@@ -278,6 +315,8 @@ class AVAE(nn.Module):
             loss = loss + self.style_loss_weight * style_rep_loss 
         if content_rep_loss is not None:
             loss = loss + self.content_loss_weight * content_rep_loss 
+        if constraint_loss is not None:
+            loss = loss + self.constraint_loss_weight * constraint_loss
         
         return {
             'loss': loss,
@@ -289,6 +328,7 @@ class AVAE(nn.Module):
             'mi_loss': mi_loss,
             'style_rep_loss': style_rep_loss,
             'content_rep_loss': content_rep_loss,
+            'constraint_loss': constraint_loss,
         }
     
     def save_style_encoder(self, path):

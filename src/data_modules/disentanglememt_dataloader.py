@@ -73,6 +73,11 @@ class DisentanglementDataModule(L.LightningDataModule):
                 placeholder=self.placeholder_token,
                 seed=self.seed,
             )
+            style_encoder = kwargs.get('style_encoder', None)
+            content_encoder = kwargs.get('content_encoder', None)
+            cache_name = kwargs.get('cache_name', 'precomputed_hidden')
+            if style_encoder is not None and content_encoder is not None:
+                dataset.precompute_ref_representation(style_encoder=style_encoder, content_encoder=content_encoder, cache_name=cache_name)
             if self.global_rank == 0:
                 print(f"Loaded dataset {name} with {len(dataset)} examples.")
             if len(dataset) > 0:
@@ -112,10 +117,25 @@ class DisentanglementDataModule(L.LightningDataModule):
 
 if __name__=='__main__':
     # Example usage
-    from transformers import AutoTokenizer
+    from transformers import AutoTokenizer, AutoModel
+    import hashlib
+    from src.model.encoder import WrappedEncoder
 
     encoder_tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-1.5B")
     generator_tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-1.5B-Instruct")
+
+    style_encoder_name = "Hieuman/qwen2-1.5b-hard-author-reps"
+    content_encoder_name = "Alibaba-NLP/gte-Qwen2-1.5B-instruct"
+    style_encoder = AutoModel.from_pretrained(style_encoder_name)
+    style_tokenizer = AutoTokenizer.from_pretrained(style_encoder_name)
+    content_encoder = AutoModel.from_pretrained(content_encoder_name)
+    content_tokenizer = AutoTokenizer.from_pretrained(content_encoder_name)
+    style_encoder = WrappedEncoder(style_encoder, style_tokenizer, num_gpus=8)
+    content_encoder = WrappedEncoder(content_encoder, content_tokenizer, num_gpus=8)
+    cache_name = f"style:{style_encoder_name}_content:{content_encoder_name}"
+    # hash the cache name to get a unique identifier
+    cache_name = hashlib.md5(cache_name.encode()).hexdigest()
+    print(f"Using cache name: {cache_name}")
 
     dataloader = DisentanglementDataModule(
         seed=777,
@@ -129,11 +149,11 @@ if __name__=='__main__':
         global_batch_size=8,
         world_size=1,
         global_rank=0,
-        num_train_example=1000,
+        num_train_example=100000000,  # Use a large number to load all examples
         placeholder_token=" <|placeholder|> ",
         prompt_loss=False,
     )
-    dataloader.setup()
+    dataloader.setup(style_encoder=style_encoder, content_encoder=content_encoder, cache_name=cache_name)
     train_dataloader = dataloader.train_dataloader()
     for batch in train_dataloader:
         breakpoint()
