@@ -3,6 +3,7 @@ import einops
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from huggingface_hub import PyTorchModelHubMixin
 
 from src.model.vae import VAE, VQVAE
 from src.model.encoder import Encoder
@@ -10,7 +11,7 @@ from src.model.generator import Generator
 from src.model.loss import AngleLoss
 
 
-class AVAE(nn.Module):
+class AVAE(nn.Module, PyTorchModelHubMixin):
     def __init__(
             self, 
             style_encoder_model_name_or_path: str,

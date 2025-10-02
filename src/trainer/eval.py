@@ -521,6 +521,7 @@ if __name__ == "__main__":
                     )
             state_dict = torch.load(model_name_or_path, map_location='cpu')
             imcomplete_keys = model.load_state_dict(state_dict['model'], strict=False)
+            breakpoint()
             print(f"Loaded model with missing keys: {imcomplete_keys}")
             # Style encoder evaluation
             wrapped_encoder = WrappedEncoder(model.style_encoder, num_gpus=8)
