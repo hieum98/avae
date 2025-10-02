@@ -145,8 +145,6 @@ EAVAE is trained on diverse multi-author corpora:
 - **Wikipedia** 
 - And more (see [Pretrain_data](https://huggingface.co/collections/Hieuman/document-level-authorship-datasets-67e87663cb587c938def821b))
 
-![Training Datasets](content/image.png)
-
 ### Evaluation Benchmarks
 
 - **HRS** (HIATUS Reddit Stories): multi-genre authorship verification
